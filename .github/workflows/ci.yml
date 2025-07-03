@@ -26,7 +26,6 @@ jobs:
       with:
         cuda: ${{ matrix.cuda }}.0
         method: 'network'
-        sub-packages: '["nvcc", "cuda-toolkit"]'
     
     - name: Install dependencies
       run: |
