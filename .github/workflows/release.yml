@@ -1,0 +1,82 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        cuda: ['12.4', '12.5']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup CUDA
+      uses: Jimver/cuda-toolkit@v0.2.16
+      with:
+        cuda: ${{ matrix.cuda }}.0
+        method: 'network'
+        sub-packages: '["nvcc", "cuda-toolkit"]'
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+        
+    - name: Configure CMake (Release)
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=../install \
+              ..
+        
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+        make install || true
+        
+    - name: Package artifacts
+      run: |
+        mkdir -p artifacts
+        cd build
+        tar -czf ../artifacts/cuda-kernel-optimizer-cuda${{ matrix.cuda }}-linux-x64.tar.gz \
+          libcuda_image_kernels.a \
+          ../host/*.h \
+          ../kernels/*.cu \
+          ../README.md \
+          ../CLAUDE.md
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: cuda-kernel-optimizer-cuda${{ matrix.cuda }}
+        path: artifacts/*.tar.gz
+        
+  create-release:
+    needs: build-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: artifacts/**/*.tar.gz
+        generate_release_notes: true
+        draft: false
+        prerelease: false

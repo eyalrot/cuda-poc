@@ -1,0 +1,99 @@
+name: Python Tests
+
+on:
+  push:
+    paths:
+      - 'image_processing/**'
+      - 'CLAUDE.md'
+  pull_request:
+    paths:
+      - 'image_processing/**'
+      - 'CLAUDE.md'
+
+jobs:
+  test-python:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy scipy pytest pytest-cov
+        
+    - name: Run Python tests
+      run: |
+        cd image_processing
+        # Create a simple test
+        cat > test_image_filter.py << 'EOF'
+        import numpy as np
+        import pytest
+        from image_filter import process_image, apply_convolution
+        
+        def test_process_image_shape():
+            """Test that output shape matches input shape"""
+            test_image = np.random.rand(100, 100).astype(np.float32)
+            result = process_image(test_image)
+            assert result.shape == test_image.shape
+            assert result.dtype == np.float32
+        
+        def test_process_image_threshold():
+            """Test that thresholding works correctly"""
+            test_image = np.ones((10, 10), dtype=np.float32) * 0.3
+            result = process_image(test_image)
+            # After Gaussian blur and threshold of 0.5, values should be 0
+            assert np.all(result == 0.0)
+        
+        def test_convolution():
+            """Test convolution operation"""
+            test_image = np.ones((5, 5), dtype=np.float32)
+            kernel = np.ones((3, 3), dtype=np.float32) / 9.0
+            result = apply_convolution(test_image, kernel)
+            assert result.shape == test_image.shape
+            # Center pixels should be 1.0 (average of all 1s)
+            assert np.allclose(result[1:-1, 1:-1], 1.0)
+        
+        if __name__ == "__main__":
+            pytest.main([__file__, "-v"])
+        EOF
+        
+        python -m pytest test_image_filter.py -v --cov=.
+        
+    - name: Generate test data
+      run: |
+        cd image_processing
+        python -c "
+        import numpy as np
+        import struct
+        
+        # Generate sample binary test file
+        height, width, channels = 64, 64, 1
+        dtype = 0  # float32
+        
+        with open('test_input.bin', 'wb') as f:
+            # Write header
+            f.write(struct.pack('iiii', height, width, channels, dtype))
+            # Write data
+            data = np.random.rand(channels, height, width).astype(np.float32)
+            data.tofile(f)
+        
+        print(f'Created test_input.bin: {height}x{width}x{channels} float32')
+        "
