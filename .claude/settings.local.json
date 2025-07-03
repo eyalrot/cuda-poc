@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(mv:*)",
+      "Bash(find:*)",
+      "Bash(cmake:*)",
+      "Bash(grep:*)",
+      "Bash(make:*)",
+      "Bash(rm:*)",
+      "Bash(nm:*)",
+      "Bash(gh:*)"
+    ],
+    "deny": []
+  }
+}
