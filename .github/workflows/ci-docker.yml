@@ -57,7 +57,7 @@ jobs:
     - name: Install tools
       run: |
         apt-get update
-        apt-get install -y cppcheck clang-format-16
+        apt-get install -y cppcheck clang-format
         
     - name: Run cppcheck
       run: |
@@ -73,5 +73,5 @@ jobs:
         find . \( -name "*.cpp" -o -name "*.h" -o -name "*.cu" -o -name "*.cuh" \) \
                -not -path "./build/*" \
                -not -path "./venv/*" \
-               -exec clang-format-16 --dry-run --Werror {} + || \
+               -exec clang-format --dry-run --Werror {} + || \
                echo "::warning::Code formatting issues found. Run clang-format to fix."
