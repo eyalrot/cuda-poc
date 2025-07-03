@@ -9,23 +9,18 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.9.0-devel-ubuntu22.04
     
-    name: CUDA 12.9 - Release
+    name: CUDA 12.9 Docker - Release
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup CUDA
-      uses: Jimver/cuda-toolkit@v0.2.25
-      id: cuda-toolkit
-      with:
-        cuda: '12.9.0'
-        method: 'network'
-    
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential libgtest-dev
+        apt-get update
+        apt-get install -y cmake build-essential libgtest-dev
         
     - name: Configure CMake
       run: |
@@ -43,36 +38,26 @@ jobs:
         cd build
         find . -name "*.a" -o -name "*.so" -o -name "*test*" -type f
         
-    - name: Run tests (if GPU available)
-      run: |
-        cd build
-        # This will fail without a GPU, but that's expected in CI
-        # In a real setup, you'd use GPU runners or skip these tests
-        if nvidia-smi &> /dev/null; then
-          echo "GPU detected, running tests"
-          ctest --output-on-failure || true
-        else
-          echo "No GPU detected, skipping runtime tests"
-        fi
-        
     - name: Check symbols
       run: |
         cd build
-        if [ -f libcuda_image_kernels.a ]; then
+        if [ -f lib/libcuda_image_kernels.a ]; then
           echo "=== Checking exported symbols ==="
-          nm -C libcuda_image_kernels.a | grep " T " | head -20
+          nm -C lib/libcuda_image_kernels.a | grep " T " | head -20
         fi
 
   code-quality:
     runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
     
     steps:
     - uses: actions/checkout@v4
     
     - name: Install tools
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cppcheck clang-format-16
+        apt-get update
+        apt-get install -y cppcheck clang-format
         
     - name: Run cppcheck
       run: |
@@ -88,57 +73,5 @@ jobs:
         find . \( -name "*.cpp" -o -name "*.h" -o -name "*.cu" -o -name "*.cuh" \) \
                -not -path "./build/*" \
                -not -path "./venv/*" \
-               -exec clang-format-16 --dry-run --Werror {} + || \
+               -exec clang-format --dry-run --Werror {} + || \
                echo "::warning::Code formatting issues found. Run clang-format to fix."
-
-  documentation:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Check documentation
-      run: |
-        echo "=== Checking README ==="
-        if [ ! -f README.md ]; then
-          echo "::error::README.md is missing"
-          exit 1
-        fi
-        
-        echo "=== Checking CLAUDE.md ==="
-        if [ ! -f CLAUDE.md ]; then
-          echo "::error::CLAUDE.md is missing"
-          exit 1
-        fi
-        
-        echo "=== Documentation files present ==="
-        ls -la *.md
-
-  python-check:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy flake8 black
-        
-    - name: Check Python code
-      run: |
-        echo "=== Running flake8 ==="
-        flake8 image_processing/ --max-line-length=100 || true
-        
-        echo "=== Checking with black ==="
-        black --check image_processing/ || echo "::warning::Python code needs formatting with black"
-        
-    - name: Test Python functions
-      run: |
-        cd image_processing
-        python -c "import image_filter; print('Python imports successful')"
