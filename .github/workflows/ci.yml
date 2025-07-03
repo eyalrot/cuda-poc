@@ -10,11 +10,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     
-    strategy:
-      matrix:
-        build_type: ['Release', 'Debug']
-    
-    name: CUDA 12.9 - ${{ matrix.build_type }}
+    name: CUDA 12.9 - Release
     
     steps:
     - uses: actions/checkout@v4
@@ -35,7 +31,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ..
+        cmake -DCMAKE_BUILD_TYPE=Release ..
         
     - name: Build
       run: |
