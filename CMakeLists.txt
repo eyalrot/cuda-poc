@@ -9,8 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-# CUDA architecture settings - include common architectures
-set(CMAKE_CUDA_ARCHITECTURES "75;80;86;89;90")
+# CUDA architecture settings for SM 89/90 (Ada Lovelace)
+set(CMAKE_CUDA_ARCHITECTURES "89;90")
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
@@ -55,7 +55,6 @@ target_compile_options(cuda_image_kernels PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:
         -O3
         -use_fast_math
-        -arch=sm_75
         --ptxas-options=-v
         --extended-lambda
         --expt-relaxed-constexpr

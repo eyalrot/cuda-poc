@@ -47,7 +47,7 @@ This agent analyzes Python image processing functions using NumPy and generates 
 - **Binary Format**: MUST match the format in Python comments exactly
 
 ### Target Environment
-- **CUDA Version**: 12.8+ (tested with 12.8 in CI)
+- **CUDA Version**: 12.9+ (tested with 12.9 in CI)
 - **GPU Architecture**: SM 89/90 (Ada Lovelace and newer)
 - **Memory Modes**: Unified memory and explicit transfers
 - **Build System**: CMake
