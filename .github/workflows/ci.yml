@@ -12,10 +12,9 @@ jobs:
     
     strategy:
       matrix:
-        cuda: ['12.4', '12.5']
         build_type: ['Release', 'Debug']
     
-    name: CUDA ${{ matrix.cuda }} - ${{ matrix.build_type }}
+    name: CUDA 12.8 - ${{ matrix.build_type }}
     
     steps:
     - uses: actions/checkout@v4
@@ -24,7 +23,7 @@ jobs:
       uses: Jimver/cuda-toolkit@v0.2.16
       id: cuda-toolkit
       with:
-        cuda: ${{ matrix.cuda }}.0
+        cuda: '12.8.0'
         method: 'network'
     
     - name: Install dependencies

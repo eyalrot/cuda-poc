@@ -47,7 +47,7 @@ jobs:
       run: |
         mkdir -p artifacts
         cd build
-        tar -czf ../artifacts/cuda-kernel-optimizer-cuda${{ matrix.cuda }}-linux-x64.tar.gz \
+        tar -czf ../artifacts/cuda-kernel-optimizer-cuda12.8-linux-x64.tar.gz \
           libcuda_image_kernels.a \
           ../host/*.h \
           ../kernels/*.cu \
@@ -57,7 +57,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: cuda-kernel-optimizer-cuda${{ matrix.cuda }}
+        name: cuda-kernel-optimizer-cuda12.8
         path: artifacts/*.tar.gz
         
   create-release:

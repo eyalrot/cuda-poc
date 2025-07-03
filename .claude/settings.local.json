@@ -15,7 +15,10 @@
       "Bash(make:*)",
       "Bash(rm:*)",
       "Bash(nm:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

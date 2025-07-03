@@ -11,7 +11,7 @@ This agent analyzes Python image processing functions using NumPy and generates 
 - **Automatic Kernel Generation**: Converts Python/NumPy code to optimized CUDA kernels
 - **Kernel Fusion**: Automatically fuses operations to minimize memory bandwidth
 - **Float32 Support**: Optimized for float32 data type as specified in Python files
-- **Target Architecture**: CUDA 12.9, SM 89/90 (Ada Lovelace and newer)
+- **Target Architecture**: CUDA 12.8+, SM 89/90 (Ada Lovelace and newer)
 
 ## Project Structure
 
@@ -41,7 +41,7 @@ make -j$(nproc)
 
 ## Requirements
 
-- CUDA 12.9 or later
+- CUDA 12.8 or later
 - CMake 3.18 or later
 - C++17 compatible compiler
 - GPU with compute capability 8.9 or higher (RTX 40 series)
