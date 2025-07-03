@@ -343,3 +343,68 @@ The agent aims to achieve:
 - **Numerical accuracy**: Within specified threshold
 - **Kernel fusion benefit**: 20-50% over individual kernels
 
+## Important Guidelines and Best Practices
+
+### Build Configuration
+1. **CUDA Architecture Settings**:
+   - Use ONLY SM 89 and 90 architectures (Ada Lovelace)
+   - Set in CMakeLists.txt: `set(CMAKE_CUDA_ARCHITECTURES "89;90")`
+   - Do NOT use `-arch=sm_XX` flags directly in compile options
+   - Let CMake handle architecture flags automatically
+
+2. **CUDA Version Requirements**:
+   - Minimum CUDA 12.9 required
+   - CI uses Docker image: `nvidia/cuda:12.9.0-devel-ubuntu22.04`
+   - Ensure local development matches CI environment
+
+### CI/CD Best Practices
+1. **Use Docker-based CI**:
+   - Eliminates CUDA installation overhead (~2-3 minutes saved)
+   - Provides consistent build environment
+   - Pre-installed CUDA toolkit in container
+   - Total CI time: ~2 minutes vs ~4 minutes traditional
+
+2. **CI Optimization**:
+   - Build only Release mode in CI (Debug builds are optional)
+   - Use container caching for faster subsequent runs
+   - Run code quality checks in parallel with builds
+
+3. **Docker CI Structure**:
+   ```yaml
+   container:
+     image: nvidia/cuda:12.9.0-devel-ubuntu22.04
+   ```
+
+### Code Quality Standards
+1. **Formatting**:
+   - Use clang-format for consistent code style
+   - CI enforces formatting checks
+   - Run locally before committing
+
+2. **Static Analysis**:
+   - cppcheck runs on all C++ code
+   - Address warnings before merging
+
+### Development Workflow
+1. **Local Testing**:
+   - Build with same flags as CI: `-O3 -use_fast_math --ptxas-options=-v`
+   - Test with Release build for performance validation
+   - Use Debug build only for troubleshooting
+
+2. **Performance Verification**:
+   - Always check ptxas output for register usage
+   - Monitor shared memory usage
+   - Verify memory access patterns are coalesced
+
+3. **Binary Compatibility**:
+   - Generated kernels must match Python specification exactly
+   - Test with provided binary test files
+   - Validate numerical accuracy against Python reference
+
+### Common Pitfalls to Avoid
+1. **DO NOT add support for multiple architectures** unless specified
+2. **DO NOT use older CUDA versions** - stick to 12.9+
+3. **DO NOT generate template code** for multiple data types unless requested
+4. **DO NOT skip binary format validation** - it must match Python specs exactly
+5. **DO NOT use manual `-arch` flags** - use CMAKE_CUDA_ARCHITECTURES instead
+
