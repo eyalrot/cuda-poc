@@ -330,3 +330,53 @@ const std::vector<MorphologyParameters> COMMON_MORPH_PARAMS = {
     MorphologyParameters(9, 0),      // Large disk
     MorphologyParameters(11, 1)      // Very large square
 };
+
+// Template implementations
+template<typename KernelFunc>
+inline BenchmarkResult CudaKernelTest::benchmark_kernel(KernelFunc kernel_func, 
+                                               size_t iterations) {
+    BenchmarkResult result;
+    result.iterations = iterations;
+    
+    // Warm-up runs
+    for (int i = 0; i < 5; ++i) {
+        kernel_func();
+    }
+    cudaDeviceSynchronize();
+    
+    // Timing runs
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
+    std::vector<float> times;
+    times.reserve(iterations);
+    
+    for (size_t i = 0; i < iterations; ++i) {
+        cudaEventRecord(start);
+        kernel_func();
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        
+        float elapsed_ms = 0;
+        cudaEventElapsedTime(&elapsed_ms, start, stop);
+        times.push_back(elapsed_ms);
+    }
+    
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    
+    // Calculate statistics
+    result.min_time_ms = *std::min_element(times.begin(), times.end());
+    result.max_time_ms = *std::max_element(times.begin(), times.end());
+    result.avg_time_ms = std::accumulate(times.begin(), times.end(), 0.0f) / iterations;
+    
+    // Calculate standard deviation
+    float variance = 0;
+    for (float time : times) {
+        variance += (time - result.avg_time_ms) * (time - result.avg_time_ms);
+    }
+    result.stddev_ms = std::sqrt(variance / iterations);
+    
+    return result;
+}

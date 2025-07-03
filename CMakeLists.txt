@@ -74,13 +74,13 @@ if(GTest_FOUND)
     message(STATUS "GTest found, building tests")
     
     # Test executables
-    add_executable(test_filters tests/test_filters.cpp)
+    add_executable(test_filters tests/test_filters.cpp tests/test_common.cpp)
     target_link_libraries(test_filters cuda_image_kernels GTest::gtest GTest::gtest_main)
     
-    add_executable(test_fused_ops tests/test_fused_ops.cpp)
+    add_executable(test_fused_ops tests/test_fused_ops.cpp tests/test_common.cpp)
     target_link_libraries(test_fused_ops cuda_image_kernels GTest::gtest GTest::gtest_main)
     
-    add_executable(test_morphology tests/test_morphology.cpp)
+    add_executable(test_morphology tests/test_morphology.cpp tests/test_common.cpp)
     target_link_libraries(test_morphology cuda_image_kernels GTest::gtest GTest::gtest_main)
     
     # Enable testing

@@ -13,6 +13,8 @@
       "Bash(cmake:*)",
       "Bash(grep:*)",
       "Bash(make:*)",
+      "Bash(cd:*)",
+      "Bash(nproc:*)",
       "Bash(rm:*)",
       "Bash(nm:*)",
       "Bash(gh:*)",
@@ -23,3 +25,4 @@
     "deny": []
   }
 }
+
