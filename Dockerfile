@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.9.0-devel-ubuntu22.04
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \

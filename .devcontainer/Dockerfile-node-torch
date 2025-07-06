@@ -1,0 +1,105 @@
+# Use the specified PyTorch image as the base
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel
+
+ARG TZ
+ENV TZ="$TZ"
+
+# Switch to root user for all subsequent commands
+USER root
+
+# Update package lists and install basic development tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  # General tools
+  curl \
+  less \
+  git \
+  procps \
+  sudo \
+  fzf \
+  man-db \
+  unzip \
+  gnupg \
+  gnupg2 \
+  gh \
+  iptables \
+  ipset \
+  iproute2 \
+  dnsutils \
+  aggregate \
+  jq \
+  wget \
+  ca-certificates \
+  lsb-release \
+  # C++ development tools
+  cmake \
+  build-essential \
+  libgtest-dev \
+  clang-format \
+  cppcheck \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install the latest version of Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - \
+    && apt-get install -y nodejs
+
+# Create node user (since PyTorch image doesn't have it)
+RUN groupadd -r node && useradd -r -g node -d /home/node -s /bin/bash node && \
+    mkdir -p /home/node && chown -R node:node /home/node
+
+# Ensure default node user has access to /usr/local/share
+RUN mkdir -p /usr/local/share/npm-global && \
+  chown -R node:node /usr/local/share
+
+ARG USERNAME=node
+
+# Persist bash history
+RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
+  && mkdir /commandhistory \
+  && touch /commandhistory/.bash_history \
+  && chown -R $USERNAME /commandhistory
+
+# Set `DEVCONTAINER` environment variable to help with orientation
+ENV DEVCONTAINER=true
+
+# Create workspace and config directories and set permissions
+RUN mkdir -p /workspace /home/node/.claude && \
+  chown -R node:node /workspace /home/node/.claude
+
+WORKDIR /workspace
+
+# Install git-delta for better diffs
+RUN ARCH=$(dpkg --print-architecture) && \
+  wget "https://github.com/dandavison/delta/releases/download/0.18.2/git-delta_0.18.2_${ARCH}.deb" && \
+  dpkg -i "git-delta_0.18.2_${ARCH}.deb" && \
+  rm "git-delta_0.18.2_${ARCH}.deb"
+
+# Set up non-root user
+USER node
+
+# Install global packages
+ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
+ENV PATH=$PATH:/usr/local/share/npm-global/bin
+
+# Set the default shell to bash
+ENV SHELL=/bin/bash
+
+# Configure bash with better history settings
+RUN echo "export PROMPT_COMMAND='history -a'" >> /home/node/.bashrc && \
+    echo "export HISTFILE=/commandhistory/.bash_history" >> /home/node/.bashrc && \
+    echo "# FZF key bindings and completion" >> /home/node/.bashrc && \
+    echo "[ -f /usr/share/fzf/key-bindings.bash ] && source /usr/share/fzf/key-bindings.bash" >> /home/node/.bashrc && \
+    echo "[ -f /usr/share/fzf/completion.bash ] && source /usr/share/fzf/completion.bash" >> /home/node/.bashrc && \
+    echo "# Alternative locations for fzf files" >> /home/node/.bashrc && \
+    echo "[ -f /usr/share/doc/fzf/examples/key-bindings.bash ] && source /usr/share/doc/fzf/examples/key-bindings.bash" >> /home/node/.bashrc && \
+    echo "[ -f /usr/share/doc/fzf/examples/completion.bash ] && source /usr/share/doc/fzf/examples/completion.bash" >> /home/node/.bashrc
+
+# Install Claude Code CLI globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Copy and set up the firewall script
+COPY init-firewall.sh /usr/local/bin/
+USER root
+RUN chmod +x /usr/local/bin/init-firewall.sh && \
+  echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
+  chmod 0440 /etc/sudoers.d/node-firewall
+USER node
