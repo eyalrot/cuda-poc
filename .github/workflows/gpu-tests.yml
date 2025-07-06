@@ -1,0 +1,87 @@
+name: GPU Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  gpu-tests:
+    runs-on: [self-hosted, gpu, linux]
+    container:
+      image: nvidia/cuda:12.9.0-devel-ubuntu22.04
+      options: --gpus all
+    
+    name: GPU Tests - CUDA 12.9
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Verify GPU Access
+      run: |
+        nvidia-smi
+        echo "CUDA Version:"
+        nvcc --version
+    
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y cmake build-essential libgtest-dev
+        
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+        
+    - name: Run GPU Tests
+      run: |
+        cd build
+        echo "=== Running GPU tests ==="
+        # Run all test executables
+        for test in bin/test_*; do
+          if [ -f "$test" ]; then
+            echo "Running: $test"
+            $test || exit 1
+          fi
+        done
+        
+        # Or use ctest if configured
+        ctest --output-on-failure
+    
+    - name: Performance Benchmarks
+      run: |
+        cd build
+        # Run performance benchmarks if available
+        if [ -f bin/benchmark ]; then
+          ./bin/benchmark
+        fi
+
+  # Optional: Matrix strategy for multiple GPU types
+  multi-gpu-tests:
+    strategy:
+      matrix:
+        gpu_type: [rtx4090, rtx3090, a100]
+    
+    runs-on: [self-hosted, gpu, "${{ matrix.gpu_type }}"]
+    container:
+      image: nvidia/cuda:12.9.0-devel-ubuntu22.04
+      options: --gpus all
+    
+    name: GPU Tests - ${{ matrix.gpu_type }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: GPU Info
+      run: |
+        echo "Testing on ${{ matrix.gpu_type }}"
+        nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
+    
+    # ... rest of the steps similar to above ...

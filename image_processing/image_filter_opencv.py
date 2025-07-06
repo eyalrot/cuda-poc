@@ -1,8 +1,10 @@
 import numpy as np
+import cv2
 
 def process_image(image):
     """
     Process a 2D image with predefined 5x5 Gaussian filter and thresholding.
+    Uses OpenCV's filter2D for convolution with zero padding.
     
     Args:
         image: 2D numpy array of type float32
@@ -19,33 +21,16 @@ def process_image(image):
         [1, 4, 6, 4, 1]
     ], dtype=np.float32) / 256.0
     
-    # Apply 5x5 Gaussian filter using convolution
-    filtered_image = apply_convolution(image, gaussian_kernel)
+    # Apply 5x5 Gaussian filter using OpenCV with zero padding
+    # borderType=cv2.BORDER_CONSTANT with borderValue=0 provides zero padding
+    filtered_image = cv2.filter2D(image, -1, gaussian_kernel, 
+                                  borderType=cv2.BORDER_CONSTANT, 
+                                  borderValue=0)
     
     # Apply threshold of 0.5
     thresholded_image = np.where(filtered_image > 0.5, filtered_image, 0.0)
     
     return thresholded_image.astype(np.float32)
-
-def apply_convolution(image, kernel):
-    """
-    Apply convolution with the given kernel.
-    """
-    kernel_size = kernel.shape[0]
-    pad_size = kernel_size // 2
-    
-    # Pad the image with reflection
-    padded_image = np.pad(image, pad_size, mode='reflect')
-    
-    # Apply convolution
-    filtered = np.zeros_like(image)
-    for i in range(image.shape[0]):
-        for j in range(image.shape[1]):
-            filtered[i, j] = np.sum(
-                padded_image[i:i+kernel_size, j:j+kernel_size] * kernel
-            )
-    
-    return filtered
 
 if __name__ == "__main__":
     # Example usage

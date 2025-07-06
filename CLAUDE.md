@@ -1,42 +1,53 @@
 # CUDA Kernel Optimizer Agent Specification
 
-## CRITICAL REQUIREMENT: Follow Python File Specifications
+## CRITICAL REQUIREMENT: Optimize ONLY the Provided Python Code
 
-**THE AGENT MUST GENERATE CUDA KERNELS EXACTLY ACCORDING TO THE SPECIFICATIONS IN THE PYTHON FILE COMMENTS.**
+**THE AGENT MUST OPTIMIZE ONLY THE SPECIFIC PYTHON CODE PROVIDED IN THE image_processing FOLDER.**
+
+**DO NOT CREATE GENERAL-PURPOSE KERNEL LIBRARIES OR ADDITIONAL KERNELS BEYOND WHAT IS NEEDED.**
 
 When a Python file is provided:
-1. **READ THE COMMENTS FIRST** - They contain the exact specifications
-2. **USE ONLY THE DATA TYPES SPECIFIED** - If the comment says "float32", generate kernels ONLY for float32
-3. **FOLLOW THE BINARY FORMAT EXACTLY** - The comment specifies the input/output file format
-4. **RESPECT THE ACCURACY THRESHOLD** - Use the threshold specified in the comments for validation
+1. **ANALYZE ONLY THE PROVIDED PYTHON FILE** - Do not create extra kernels for operations not present in the code
+2. **OPTIMIZE EXACTLY WHAT IS REQUESTED** - Focus on fusing the specific operations in the Python code
+3. **NO FUTURE-PROOFING** - Do not create additional kernels for potential future use cases
+4. **FOLLOW THE SPECIFICATIONS IN COMMENTS** - Use exact data types, formats, and thresholds specified
 
-Example Python comment that MUST be followed:
+Example: If the Python code only does:
 ```python
-"""
-Input format: binary file with header [H:int32][W:int32][C:int32][dtype:int32][data]
-Data type: float32 (dtype=0)
-Threshold: 1e-5 (absolute error)
-"""
+def process_image(img):
+    filtered = gaussian_filter(img, sigma=2.0)
+    return threshold(filtered, 0.5)
 ```
-
-This means:
-- Generate kernels ONLY for float32 type
-- Expect binary files with the exact header format specified
-- Validate results with 1e-5 absolute error threshold
+Then create ONLY a fused kernel for gaussian_filter + threshold. Do NOT create separate kernels for other filters, morphological operations, or any operations not present in the code.
 
 ## Project Overview
 
-This agent analyzes Python image processing functions using NumPy and generates optimized CUDA kernels with equivalent functionality. The agent focuses on maximizing performance through kernel fusion and advanced CUDA optimization techniques while maintaining numerical accuracy AS SPECIFIED IN THE PYTHON FILE.
+This agent analyzes the specific Python functions provided in the image_processing folder and generates optimized CUDA kernels ONLY for those exact operations. The focus is on fusing the operations present in the Python code for maximum performance, NOT on building a comprehensive image processing library.
+
+### Example of What TO DO vs What NOT TO DO
+
+**CORRECT Approach:**
+If image_processing/filter.py contains:
+```python
+def process(img):
+    return gaussian_blur(img, sigma=2.0)
+```
+→ Create ONE kernel: gaussian_blur_kernel.cu
+
+**WRONG Approach:**
+Same Python code as above, but creating:
+- gaussian_blur_kernel.cu
+- box_filter_kernel.cu (NOT IN PYTHON CODE!)
+- median_filter_kernel.cu (NOT IN PYTHON CODE!)
+- bilateral_filter_kernel.cu (NOT IN PYTHON CODE!)
+- morphology_kernels.cu (NOT IN PYTHON CODE!)
+
+The background knowledge about various filters is ONLY for understanding the code, NOT for creating additional kernels.
 
 ## Core Capabilities
 
-### Supported Operations
-- **Filters**: Gaussian blur, box filter, median filter, bilateral filter
-- **Convolutions**: 2D convolutions with arbitrary kernels
-- **Morphological**: Erosion, dilation, opening, closing
-- **Histogram**: Computation, equalization, thresholding
-- **Thresholding**: Binary, Otsu, adaptive
-- **Basic Operations**: Element-wise operations, reductions
+### Approach
+The agent is capable of understanding and optimizing various image processing patterns, but will ONLY implement kernels for operations actually present in the provided Python code. Background knowledge about filters, convolutions, morphological operations, etc. is used solely to understand and optimize the specific code provided, not to create a library of kernels.
 
 ### Data Types & Formats
 - **Supported Types**: ONLY THE TYPES SPECIFIED IN THE PYTHON FILE COMMENTS
@@ -59,24 +70,29 @@ This agent analyzes Python image processing functions using NumPy and generates 
 
 When given a Python function, the agent MUST:
 
-1. **FIRST AND FOREMOST - Parse Python comments** to extract:
-   - Input data format specification (THIS IS MANDATORY)
-   - Data type (USE ONLY THIS TYPE - NO OTHERS)
-   - Numerical accuracy threshold (USE THIS EXACT VALUE)
-   - Expected binary file structure (FOLLOW EXACTLY)
+1. **IDENTIFY THE EXACT OPERATIONS IN THE PYTHON CODE**:
+   - List every operation performed in the Python function
+   - DO NOT add operations that aren't in the code
+   - Focus ONLY on what the Python code actually does
 
-2. **Generate kernels ONLY for the specified data type**:
-   - If Python says "float32", generate ONLY float32 kernels
-   - DO NOT add uint8 or uint16 support unless explicitly requested
-   - DO NOT create template functions for multiple types
+2. **PARSE PYTHON COMMENTS** to extract specifications:
+   - Input data format specification
+   - Data type (USE ONLY THIS TYPE)
+   - Numerical accuracy threshold
+   - Expected binary file structure
 
-3. **Analyze the computational pattern** to identify:
-   - Memory access patterns
-   - Parallelization opportunities
-   - Fusion candidates
-   - Data dependencies
+3. **GENERATE MINIMAL KERNEL SET**:
+   - Create the minimum number of kernels needed
+   - Prioritize fusion of operations in the Python code
+   - DO NOT create separate kernels unless fusion is impossible
+   - DO NOT create kernels for operations not in the Python code
 
-3. **Recognizes NumPy patterns** and maps to CUDA equivalents:
+4. **Analyze the computational pattern** to identify:
+   - Memory access patterns for the specific operations
+   - Opportunities to fuse the operations present
+   - Data dependencies between the actual operations
+
+5. **Map ONLY the NumPy patterns present in the code to CUDA**:
    ```python
    # Example Python input
    """
@@ -279,49 +295,47 @@ target_link_libraries(test_blur_sobel image_kernels)
 
 ## Agent Workflow
 
-1. **Parse Python Function**
-   - Extract algorithm logic
-   - Identify data types and dimensions
-   - Read threshold from comments
+1. **Parse Python Function in image_processing folder**
+   - Identify EXACT operations present in the code
+   - Extract data types and specifications from comments
+   - List operations to be optimized (ONLY those in the Python code)
 
-2. **Analyze Optimization Opportunities**
-   - Memory access patterns
-   - Computational intensity
-   - Fusion candidates
+2. **Plan Minimal Kernel Implementation**
+   - Determine if operations can be fused
+   - Design the minimum number of kernels needed
+   - NO extra kernels for operations not in the Python code
 
-3. **Generate CUDA Code**
-   - Create kernels with detailed comments
+3. **Generate ONLY Required CUDA Code**
+   - Create fused kernel(s) for the specific operations
    - Generate host wrapper functions
-   - Create test code
+   - Create test code for the specific implementation
 
-4. **Verify Compilation**
-   - Generate/update CMakeLists.txt
-   - Compile with nvcc
+4. **Verify Implementation**
+   - Ensure it matches the Python code behavior exactly
+   - Compile and test
    - Report any errors
 
-5. **Document Decisions**
-   - Explain optimization choices
-   - Provide performance estimates
-   - Note any limitations
+5. **Document Implementation**
+   - Explain fusion decisions for the specific operations
+   - Note performance characteristics
+   - DO NOT mention other possible kernels or future extensions
 
 ## Output Format
 
-The agent produces:
+The agent produces ONLY the files needed for the specific Python code being optimized:
 ```
 project/
 ├── kernels/
-│   ├── fused_ops.cu      # Fused kernels
-│   ├── filters.cu        # Individual filter kernels
-│   └── morphology.cu     # Morphological operations
+│   └── optimized_kernel.cu  # ONLY the kernel(s) for the Python code
 ├── host/
-│   ├── launchers.cpp     # Host-side kernel launchers
-│   └── launchers.h
+│   ├── launcher.cpp         # Host wrapper for the specific kernel
+│   └── launcher.h
 ├── tests/
-│   ├── test_common.h     # Test utilities
-│   └── test_[kernel].cpp # Specific kernel tests
-├── CMakeLists.txt        # Build configuration
-└── performance_notes.md  # Optimization rationale
+│   └── test_optimized.cpp   # Test for the specific implementation
+└── CMakeLists.txt           # Build configuration
 ```
+
+DO NOT create multiple kernel files for different operation types unless they are ALL present in the Python code.
 
 ## Limitations & Constraints
 
