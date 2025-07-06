@@ -37,16 +37,16 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install numpy scipy pytest pytest-cov
+        pip install numpy opencv-python pytest pytest-cov
         
     - name: Run Python tests
       run: |
         cd image_processing
         # Create a simple test
-        cat > test_image_filter.py << 'EOF'
+        cat > test_image_filter_opencv.py << 'EOF'
         import numpy as np
         import pytest
-        from image_filter import process_image, apply_convolution
+        from image_filter_opencv import process_image
         
         def test_process_image_shape():
             """Test that output shape matches input shape"""
@@ -62,20 +62,25 @@ jobs:
             # After Gaussian blur and threshold of 0.5, values should be 0
             assert np.all(result == 0.0)
         
-        def test_convolution():
-            """Test convolution operation"""
-            test_image = np.ones((5, 5), dtype=np.float32)
-            kernel = np.ones((3, 3), dtype=np.float32) / 9.0
-            result = apply_convolution(test_image, kernel)
-            assert result.shape == test_image.shape
-            # Center pixels should be 1.0 (average of all 1s)
-            assert np.allclose(result[1:-1, 1:-1], 1.0)
+        def test_process_image_high_values():
+            """Test that values above threshold are preserved"""
+            test_image = np.ones((10, 10), dtype=np.float32) * 0.8
+            result = process_image(test_image)
+            # After Gaussian blur of uniform high values, center should remain high
+            assert np.any(result > 0.5)
+        
+        def test_process_image_edges():
+            """Test edge handling with zero padding"""
+            test_image = np.ones((10, 10), dtype=np.float32)
+            result = process_image(test_image)
+            # Edges should be lower due to zero padding in convolution
+            assert result[0, 0] < result[5, 5]
         
         if __name__ == "__main__":
             pytest.main([__file__, "-v"])
         EOF
         
-        python -m pytest test_image_filter.py -v --cov=.
+        python -m pytest test_image_filter_opencv.py -v --cov=.
         
     - name: Generate test data
       run: |

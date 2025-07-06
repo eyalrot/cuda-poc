@@ -1,105 +1,135 @@
-# Use the specified PyTorch image as the base
+# =============================================================================
+# Base image: PyTorch with CUDA support for GPU-accelerated development
+# =============================================================================
 FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel
 
+# Configure timezone for proper timestamp handling
 ARG TZ
 ENV TZ="$TZ"
 
-# Switch to root user for all subsequent commands
+# =============================================================================
+# System setup and package installation (as root)
+# =============================================================================
 USER root
 
-# Update package lists and install basic development tools
+# Install all system dependencies in a single layer for better caching
+# Combines: system tools, development tools, Node.js, and git-delta
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  # General tools
-  curl \
-  less \
-  git \
-  procps \
-  sudo \
-  fzf \
-  man-db \
-  unzip \
-  gnupg \
-  gnupg2 \
-  gh \
-  iptables \
-  ipset \
-  iproute2 \
-  dnsutils \
-  aggregate \
-  jq \
-  wget \
-  ca-certificates \
-  lsb-release \
-  # C++ development tools
-  cmake \
-  build-essential \
-  libgtest-dev \
-  clang-format \
-  cppcheck \
-  && rm -rf /var/lib/apt/lists/*
+    # Version control and essential tools
+    curl \
+    wget \
+    git \
+    less \
+    sudo \
+    procps \
+    man-db \
+    unzip \
+    # Terminal productivity tools
+    fzf \
+    jq \
+    # Security and package management
+    gnupg \
+    gnupg2 \
+    ca-certificates \
+    lsb-release \
+    # GitHub CLI
+    gh \
+    # Network tools (required for firewall setup)
+    iptables \
+    ipset \
+    iproute2 \
+    dnsutils \
+    aggregate \
+    # C++ development tools for CUDA kernel compilation
+    cmake \
+    build-essential \
+    libgtest-dev \
+    clang-format \
+    cppcheck \
+    # Python development
+    python3-pip \
+    python3-dev \
+    # OpenCV dependencies (for image processing)
+    libopencv-dev \
+    && \
+    # Install Node.js (latest version)
+    curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
+    apt-get install -y nodejs && \
+    # Install git-delta for enhanced diff visualization
+    ARCH=$(dpkg --print-architecture) && \
+    wget -q "https://github.com/dandavison/delta/releases/download/0.18.2/git-delta_0.18.2_${ARCH}.deb" && \
+    dpkg -i "git-delta_0.18.2_${ARCH}.deb" && \
+    rm "git-delta_0.18.2_${ARCH}.deb" && \
+    # Clean up package caches to reduce image size
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install the latest version of Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - \
-    && apt-get install -y nodejs
-
-# Create node user (since PyTorch image doesn't have it)
-RUN groupadd -r node && useradd -r -g node -d /home/node -s /bin/bash node && \
-    mkdir -p /home/node && chown -R node:node /home/node
-
-# Ensure default node user has access to /usr/local/share
-RUN mkdir -p /usr/local/share/npm-global && \
-  chown -R node:node /usr/local/share
-
+# =============================================================================
+# User setup and directory structure
+# =============================================================================
+# Create node user with proper home directory and bash shell
 ARG USERNAME=node
+RUN groupadd -r node && \
+    useradd -r -g node -d /home/node -s /bin/bash node && \
+    mkdir -p /home/node /usr/local/share/npm-global /commandhistory /workspace /home/node/.claude && \
+    # Set up bash history persistence
+    touch /commandhistory/.bash_history && \
+    # Set proper ownership for all user directories
+    chown -R node:node /home/node /usr/local/share/npm-global /commandhistory /workspace /home/node/.claude
 
-# Persist bash history
-RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
-  && mkdir /commandhistory \
-  && touch /commandhistory/.bash_history \
-  && chown -R $USERNAME /commandhistory
-
-# Set `DEVCONTAINER` environment variable to help with orientation
+# =============================================================================
+# Environment configuration
+# =============================================================================
+# Indicate we're running in a devcontainer
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/node/.claude && \
-  chown -R node:node /workspace /home/node/.claude
-
+# Set working directory
 WORKDIR /workspace
 
-# Install git-delta for better diffs
-RUN ARCH=$(dpkg --print-architecture) && \
-  wget "https://github.com/dandavison/delta/releases/download/0.18.2/git-delta_0.18.2_${ARCH}.deb" && \
-  dpkg -i "git-delta_0.18.2_${ARCH}.deb" && \
-  rm "git-delta_0.18.2_${ARCH}.deb"
-
-# Set up non-root user
+# =============================================================================
+# User environment setup
+# =============================================================================
+# Switch to non-root user for security
 USER node
 
-# Install global packages
+# Configure npm to use global directory accessible by node user
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
 ENV PATH=$PATH:/usr/local/share/npm-global/bin
 
-# Set the default shell to bash
+# Set bash as default shell
 ENV SHELL=/bin/bash
 
-# Configure bash with better history settings
-RUN echo "export PROMPT_COMMAND='history -a'" >> /home/node/.bashrc && \
+# Configure bash with productivity features and persistent history
+RUN echo "# FZF integration for fuzzy finding" >> /home/node/.bashrc && \
+    echo "source /usr/share/doc/fzf/examples/key-bindings.bash" >> /home/node/.bashrc && \
+    echo "source /usr/share/doc/fzf/examples/completion.bash" >> /home/node/.bashrc && \
+    echo "" >> /home/node/.bashrc && \
+    echo "# Persistent bash history across container restarts" >> /home/node/.bashrc && \
+    echo "export PROMPT_COMMAND='history -a'" >> /home/node/.bashrc && \
     echo "export HISTFILE=/commandhistory/.bash_history" >> /home/node/.bashrc && \
-    echo "# FZF key bindings and completion" >> /home/node/.bashrc && \
-    echo "[ -f /usr/share/fzf/key-bindings.bash ] && source /usr/share/fzf/key-bindings.bash" >> /home/node/.bashrc && \
-    echo "[ -f /usr/share/fzf/completion.bash ] && source /usr/share/fzf/completion.bash" >> /home/node/.bashrc && \
-    echo "# Alternative locations for fzf files" >> /home/node/.bashrc && \
-    echo "[ -f /usr/share/doc/fzf/examples/key-bindings.bash ] && source /usr/share/doc/fzf/examples/key-bindings.bash" >> /home/node/.bashrc && \
-    echo "[ -f /usr/share/doc/fzf/examples/completion.bash ] && source /usr/share/doc/fzf/examples/completion.bash" >> /home/node/.bashrc
+    # Install Claude Code CLI globally
+    npm install -g @anthropic-ai/claude-code
 
-# Install Claude Code CLI globally
-RUN npm install -g @anthropic-ai/claude-code
-
-# Copy and set up the firewall script
-COPY init-firewall.sh /usr/local/bin/
+# =============================================================================
+# Python dependencies installation
+# =============================================================================
+# Copy requirements file first for better caching (if it exists)
+# This allows Docker to cache the pip install layer when requirements don't change
 USER root
+COPY ../requirements.txt* /tmp/
+RUN if [ -f /tmp/requirements.txt ]; then \
+        pip3 install --no-cache-dir -r /tmp/requirements.txt && \
+        rm /tmp/requirements.txt; \
+    fi
+
+# =============================================================================
+# Security configuration (must be done as root)
+# =============================================================================
+# Copy firewall initialization script and configure sudo permissions
+COPY init-firewall.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/init-firewall.sh && \
-  echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
-  chmod 0440 /etc/sudoers.d/node-firewall
+    echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
+    chmod 0440 /etc/sudoers.d/node-firewall
+
+# Switch back to node user for runtime
 USER node
