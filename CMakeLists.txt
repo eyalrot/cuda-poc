@@ -13,6 +13,7 @@ find_package(CUDAToolkit REQUIRED)
 
 # Set optimization flags
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CUDA_FLAGS "-O3 -use_fast_math --ptxas-options=-v")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -use_fast_math --ptxas-options=-v")
 
 # Create library for the Gaussian threshold kernel
