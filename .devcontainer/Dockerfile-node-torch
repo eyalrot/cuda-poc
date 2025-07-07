@@ -6,6 +6,8 @@ FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel
 # Configure timezone for proper timestamp handling
 ARG TZ
 ENV TZ="$TZ"
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
 
 # =============================================================================
 # System setup and package installation (as root)
@@ -14,7 +16,8 @@ USER root
 
 # Install all system dependencies in a single layer for better caching
 # Combines: system tools, development tools, Node.js, and git-delta
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone && \
+    apt-get update && apt-get install -y --no-install-recommends \
     # Version control and essential tools
     curl \
     wget \
