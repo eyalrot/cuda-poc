@@ -16,7 +16,7 @@ jobs:
     name: GPU Tests - CUDA 12.9
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     
     - name: Verify GPU Access
       run: |
@@ -77,7 +77,7 @@ jobs:
     name: GPU Tests - ${{ matrix.gpu_type }}
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     
     - name: GPU Info
       run: |
